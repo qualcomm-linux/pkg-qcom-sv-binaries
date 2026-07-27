@@ -1,0 +1,32 @@
+Source: qcom-sv-binaries
+Section: libs
+Priority: optional
+Maintainer: Yaman Saini <ysaini@qti.qualcomm.com>
+Rules-Requires-Root: no
+Build-Depends:
+ debhelper-compat (= 13),
+ qcom-dspservices-headers-dev,
+ libfastrpc-dev,
+ libglib2.0-dev,
+ libjsoncpp-dev
+Standards-Version: 4.6.2
+
+Package: libsv1
+Architecture: arm64
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Snapdragon Vision API libraries for running hardware accelerated ComputerVision Algorithms
+ .
+ This package contains shared libraries for the host system.
+
+Package: libsv-dev
+Section: libdevel
+Architecture: arm64
+Depends:
+ libsv1 (= ${binary:Version}),
+ ${misc:Depends},
+Description: Development files for Snapdragon Vision API computer vision libraries
+ Development headers and pkg-config files for Qualcomm sv library.
+ .
+ This package contains the development files.
