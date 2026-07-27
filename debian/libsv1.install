@@ -1,0 +1,4 @@
+usr/lib/${DEB_HOST_MULTIARCH}/libsv.so.*
+usr/lib/${DEB_HOST_MULTIARCH}/libsv_common.so.*
+usr/lib/${DEB_HOST_MULTIARCH}/libsv_eclib.so.*
+usr/lib/${DEB_HOST_MULTIARCH}/libsv_hfi.so.*
