@@ -1,0 +1,29 @@
+Source: sv-noship
+Section: libs
+Priority: optional
+Maintainer: Yaman Saini <ysaini@qti.qualcomm.com>
+Rules-Requires-Root: no
+Build-Depends:
+ debhelper-compat (= 13),
+ qcom-dspservices-headers-dev,
+ libfastrpc-dev,
+ libglib2.0-dev,
+ libjsoncpp-dev
+Standards-Version: 4.6.2
+
+Package: sv-noship1
+Architecture: arm64
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Qualcomm libsv
+ Qualcomm CPU and DSP optimized libs for running CV algorithms
+
+Package: sv-noship-dev
+Section: libdevel
+Architecture: arm64
+Depends:
+ sv-noship1 (= ${binary:Version}),
+ ${misc:Depends},
+Description: Qualcomm libsv - Development files
+ Development files for Qualcomm sv library
