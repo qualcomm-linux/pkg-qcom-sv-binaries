@@ -1,188 +1,153 @@
-# pkg-template
+# Snapdragon Vision (SV) API
 
-This repository serves as a template for creating Debian package repositories within the Qualcomm Linux ecosystem. It provides the essential structure, GitHub workflows, and configuration necessary to integrate with the [qcom-build-utils](https://github.com/qualcomm-linux/qcom-build-utils) repository, enabling standardized Debian package building processes.
+## Introduction
 
-## Quick Start
+This document describes the Snapdragon Vision Application Programming
+Interface (SV API) suite. It is a comprehensive set of APIs designed to
+empower developers to integrate powerful computer vision capabilities into
+their applications effortlessly. With a focus on simplicity, flexibility,
+and scalability, this API suite offers a wide range of features leverageable
+across different business units and addressing a wide range of use cases.
+Each API is designed to be hardware and software agnostic, ensuring
+compatibility across various target platforms. Additionally, they are
+implemented using C++ with an object-oriented design approach, providing
+modularity, re-usability, and separation of concerns.
 
-To create a new Debian package repository using this template:
+This repository packages the prebuilt SV libraries and headers for
+Debian/Ubuntu based Qualcomm Linux targets.
 
-1. Navigate to this repository's GitHub page and click the **"Use this template"** button located in the top right corner.
-2. Select **qualcomm-linux** as the organization in the drop-down menu. This is necessary.
-3. Name the new repository with the prefix `pkg-` to adhere to the naming convention for package repositories. This is necessary.
-5. Ensure the **"Include all branches"** option is enabled. Otherwise by default, only the default branch "qli-ci" is cloned.
-6. Set the `is-pkg-repo` property to `true`.
+### Practical Applications
 
-## Branches
+The building blocks exposed by the SV API map directly onto common
+embedded computer-vision workloads:
 
-- **qli-ci**: The primary branch containing workflow logic in the `.github/` folder, along with boilerplate documentation files such as license, contribution guidelines, and this README.
-- **qcom/debian/latest**: An orphan starter branch shipping a `debian/` directory layout. It is **not** meant to be used as-is for a real package; see [Setting up the packaging branch](#setting-up-the-packaging-branch) for how to construct your own `qcom/debian/latest`. Naming conventions are documented [here](https://qualcomm-confluence.atlassian.net/wiki/spaces/LinuxCoreOS/pages/2879858691/pkg-+repository+specification).
+* Depth Estimation (Stereo Disparity) enables 3D perception for robotics,
+  drones, and ADAS/surround-view systems.
+* Feature Extraction and Matching (Descriptor, Descriptor Match, FPX, NCC,
+  Pyramid FPX, Blob Detector, DetectComputeMatch) underpins visual
+  odometry, SLAM, object recognition, and image stitching pipelines.
+* Geometric Transformation (Warp) supports lens/distortion correction,
+  image rectification, and multi-camera surround-view stitching.
+* Motion Estimation (GME, LME, DL LME) is used for video stabilization,
+  encoder pre-processing, and scene/motion analytics.
+* Scaling (Scaler, Pyramid Scaler) supports multi-resolution processing
+  pipelines feeding downstream CV/ML stages.
+* Statistics (Spatial Statistics) provides frame/region statistics used
+  for auto-exposure, auto-focus, and analytics pipelines.
+* Semantic Segmentation & Tracking (Semantic Object Tracker) enables
+  object tracking for surveillance, robotics, and automotive use cases.
+* Facial Features enables face-detection driven applications such as
+  camera auto-framing, access control, and user-presence detection.
 
-## Setting up the packaging branch
+### Features supported
 
-The `qcom/debian/latest` branch shipped with this template is an orphan
-starter — its history is unrelated to any real upstream codebase. When
-you fork this template for a real package, construct your own
-`qcom/debian/latest` branch as follows:
+* Depth Estimation
+  * Stereo Disparity Estimation
+* Feature Extraction and Matching
+  * Descriptor
+  * Descriptor Match
+  * Feature Point Extraction (FPX)
+  * Normalized Cross Correlation (NCC)
+  * Pyramid FPX
+  * Blob Detector
+  * DetectComputeMatch
+* Geometric Transformation
+  * Warp
+* Motion Estimation
+  * Global Motion Estimation (GME)
+  * Local Motion Estimation (LME)
+  * Deep Learning Local Motion Estimation (DL LME)
+* Scaling
+  * Scaler
+  * Pyramid Scaler
+* Statistics
+  * Spatial Statistics
+* Semantic Segmentation & Tracking
+  * Semantic Object Tracker (SOT)
+* Facial Features
+  * Facial Features
 
-1. Clone the upstream source repository.
-2. Branch off its development tip.
-3. Copy the `debian/` directory from this template's `qcom/debian/latest`
-   branch onto your new branch as one or more commits, and customize
-   the contents (`control`, `changelog`, `copyright`, etc.) for your
-   package.
-4. Push the result as `qcom/debian/latest` in your `pkg-*` repository.
+### SV Workflow
 
-This ensures your packaging branch's history is rooted in the upstream
-code being packaged rather than being an orphan disconnected from
-upstream. This template cannot enforce that construction directly since
-it does not have access to your upstream repository.
+SV (libsv) is Qualcomm's vision-acceleration library, exposing a
+session → feature → submit model over three possible backends: EVA
+hardware, Hexagon DSP, or CPU/NEON fallback.
 
-## Validating your packaging locally
+* A client calls `SV::Session::Create()` with a config (priority, perf
+  mode, secure flag) and starts it.
+* It creates one or more Feature objects on that session (e.g. LME,
+  SOT, StereoDisparity, Scaler) and configures each.
+* Work is submitted via `SubmitSync` / `SubmitAsync` / `SubmitFence`,
+  returning results directly, via callback, or via a sync fence.
+* Each feature reports which backends it supports; the library picks
+  EVA hardware if present, otherwise falls back to DSP or CPU.
+* EVA hardware path: `hfi_common_lib` speaks the HFI packet protocol to
+  EVA/CVP firmware; `eclib` packs warp/geometry parameters for it.
+* DSP/CPU path: `svswlib/common` holds shared algorithm logic,
+  `svswlib/cpu` has NEON implementations, `svswlib/dsp` has Hexagon HVX
+  implementations invoked over a FastRPC skel/stub.
+* `sv/common/utils` provides shared cross-platform primitives
+  (threading, sync, logging).
+* A separate `sv-service` daemon handles lightweight debug-dump/SFR
+  duties standalone.
 
-Before pushing to the packaging branch, build the package and run
-[Lintian](https://lintian.debian.org/) against the resulting `.changes`
-to catch policy violations and common packaging mistakes before CI
-does:
+### Building
 
-```sh
-gbp buildpackage   # or: dpkg-buildpackage -us -uc -b
-lintian -EviL +pedantic ../*.changes
+The debian/rules file extracts prebuilt binaries from the tarball and installs them into the appropriate package staging directories under `data/<package-name>/arm64/`.
+
+### Installation
+
+Building produces two binary packages:
+
+* `libsv1` — the SV runtime shared libraries.
+* `libsv-dev` — headers, unversioned `.so` symlinks, and pkg-config
+  files needed to build against SV; depends on `libsv1 (= ${binary:Version})`.
+
+- Make sure to install [Fastrpc Debian package](https://github.com/qualcomm/fastrpc/tree/development) and the jsoncpp Debian
+  package (`libjsoncpp`) otherwise the SV Debian package will give
+  dependency errors.
+- Install the package using command:
+  `sudo dpkg -i qcom-sv-binaries1_1.0.0-1_arm64.deb`
+- Once installation is complete one should see `libsv.so.1` in
+  `/usr/lib/aarch64-linux-gnu`.
+
+For development against the API, also install:
+
+```
+sudo dpkg -i libsv-dev_1.0.0-1_arm64.deb
 ```
 
-The flags display experimental tags, info-level extended descriptions,
-and the strictest "pedantic" level. Address findings (or add justified
-entries to a `lintian-overrides` file) before opening a PR.
+Once installed, the libraries are placed under
+`/usr/lib/<DEB_HOST_MULTIARCH>/` (e.g. `/usr/lib/aarch64-linux-gnu/`) and
+headers under `/usr/include/`. Applications can pick up the compile/link
+flags via `pkg-config` using the `.pc` file shipped in `libsv-dev`.
 
-## Workflows
+### Debugging
 
-The `qli-ci` branch includes the following workflows in the `.github/workflows/` directory:
+To enable runtime logs for debugging purposes use below command:<br>
+  `adb shell setprop vendor.runtime.sv.debuglogen 1`<br>
+It will enable additional runtime logs.
 
-- **qcom-preflight-checks.yml**: A sanity check workflow inherited from the base Qualcomm template.
-- **stale-issues.yml**: A workflow for managing stale issues, also inherited from the base template.
-- **build-debian-package.yml**: Builds the Debian package for this repository. This workflow serves as an entry point that invokes reusable workflows from the centralized qcom-build-utils repository.
-- **pr-pre-post-merge.yml**: This workflow executes during a PR, and once the PR is merged. 
-- **promote-upstream.yml**: Promotes the package's tracking version to a new upstream release. This workflow also triggers reusable workflows in qcom-build-utils.
-- **release**: Used to trigger a release of a package
+### Bug Reporting Guidelines
 
-## IMPORTANT: Workflow to paste in the upstream source repo
+When reporting bugs, please provide the following details to facilitate debugging:<br>
+- **Platform/SoC Name:** Specify the name of the platform or System on Chip (SoC) being used.
+- **User Space Library Version/HLOS Build Details:** Include the version of the user space library and details of the High-Level Operating System (HLOS) build.
+- **stdout & stderr for User Space:** Share the standard output and standard error logs for the user space.
+- **User Library Logs:** Can be captured from `/var/log/syslog`.
+- **Kernel Version:** Provide the version of the kernel.
+- **dmesg Logs:** Include the dmesg logs.
+- **QXDM Logs:** Provide QXDM logs for DSP failures.
+- **Tests Run & Parameters:** Detail the tests that were run along with their parameters, including any environment variables explicitly set for SV, API used and any custom parameters given.
+- **Custom Test Code:** If a custom test was conducted, please share a code snippet or the complete code to reproduce the issue.
 
-The .github/TO_PASTE_IN_UPSTREAM_REPO/pkg-build-pr-check.yml needs to be transfered over to the source repo.
-Once this is done, delete the TO_PASTE_IN_UPSTREAM_REPO as it is not necessary to keep in this repository once the workflow has been transfered.
+### License
 
-**This workflow needs to be put in the default branch of the source repo (likely branch main unless you modify it), otherwise it wont work** This is per new December Github update
+The SV libraries and headers (`Files: *`) are licensed under
+Qualcomm's proprietary license; see `debian/copyright` for the full
+license reference.
 
-## Repository Configuration
-
-### Runners
-
-All the workflows are running on the github arm64 runners. Some sections need to run on the AWS runners where access to S3 buckets and artifactory. You will need to ask **Steve Manley** to enable the repo for the AWS runners.
-
-### GHCR Registry Access
-
-The build workflows rely on the `pkg-builder` container image hosted in the qualcomm-linux GitHub Container Registry (GHCR). For your newly created repository to be able to pull this image, it must be explicitly granted `packages:read` access.
-
-To request this, please contact **Mark Matyas** (mmatyas@qti.qualcomm.com) and ask him to add your repository to the list of repositories authorized to access the `pkg-builder` package. The relevant settings page is:
-
-https://github.com/orgs/qualcomm-linux/packages/container/pkg-builder/settings
-
-### Repository Variables
-
-Set the following repository variables to establish links between upstream and package repositories:
-
-- **UPSTREAM_REPO_GITHUB_NAME**: In this package repo, this is the GitHub name of the upstream repository (e.g. in the case of the pkg-example, `qualcomm-linux/qcom-example-package-source`).
-- **PKG_REPO_GITHUB_NAME**: This variable is set in the upstream project repo; the GitHub name of the package repository (e.g., `qualcomm-linux/pkg-example`).
-
-### Branch Protection Rules
-
-Configure branch protection for `debian/**` and `qcom/**`:
-
-- Restrict deletions.
-- Require pull requests before merging.
-- Block force pushes.
-- Add `build / build-debian-package` as a required status check.
-- Add the `qcom-service-bot` account with admin rights
-- Add the Admin role to the branche protection ruleset so that the qcom-service-bot can push directly to those branches
-
-### Additional Settings
-
-- Enable **"Automatically delete head branches"** for pull requests.
-- Allow only merge commits for pull request merges.
-- Enable **release immutability** in the upstream repository.
-- Add the Qualcomm Github Service bot as a user with the **Write** role:
-  - While the repo is private, add the Github user **qcom-service-bot** with the **Write** role.
-  - If/when the repo is made public, there will be a big change in how the contributors are handled. 
-    After that, the contributors list is cleared, and one need to re-enroll as a contributor. The way
-    to do that is completely different from when the repo was private. When it was private, the creator
-    of the repo had the possibility to go into the repo settings and add whoever. When made public, the
-    repo's maintainer/contributor list is managed by a Qualcomm internal mailing list. If the repo is
-    named pkg-foo, then the Maintainer list will be named Maintainers.pkg-foo, and one need to request
-    access via https://lists.qualcomm.com, find the list and ask access. For the bot, you must add it via
-    its qualcomm username **githubservice**@qti.qualcomm.com, as opposed to its Github handle above.
-
-## Setting the `is-pkg-repo` property
-
-We automate management of `pkg-*` repositories by searching for the `is-pkg-repo` property; please set is to `true` when creation, or when you're ready.
-
-## Making your pkg-repo to public
-
-When your pkg-repo is mature enough, it will need to be made public.
-
-### How to make the repo go public
- 
-The first step in making a repo go public is the Tradesmark/legal process.
-Your POC (Person of Contact) in this step is [Stephanie Arce](sarce@qti.qualcomm.com)
-
-You need to [complete an OSS Contribution Request](https://jira-dc4.qualcomm.com/jira/secure/CreateIssue.jspa?pid=46536&issuetype=13440)
-
-Here is a bit of help on the mandatory fields when filling the form:
-
-- Components : Select "Other"
-- Summary : Give a short description such as "Debian packaging repository for X"
-- Project name: This would be the repo name, such as "pkg-example"
-- Destination URL: Give the Github URL, such as "www.github.com/qualcomm-linux/pkg-example"
-- Description: Give a description about the repo being a debian packaging repo, which packages another upstream project X
-- Project Licenses: Give the license of the repo. Unless something changes, it should remain  BSD-3-Clause License.
-- Contribution plan: 
-  - Project Description: You can give the same project description as above
-  - What are ourr general plan with the Project: Talk about it being the debian packaging for project X
-  - Do we have any Leadership positions in the project: Give yourself/manager
-  - Is Qualcomm expanding the project by contributing technology implementations: Likely a simple no
-
-More information can be found [here](https://github.qualcomm.com/pages/osdo/handbook/qcom-github/docs/new-project-checklist/)
-
-Once submitted, it will generally take a couple of days to a week to get approval from Legal.
-
-The, once you receive an email about the acceptance of the Legal team, you will have to submit a ticket about enabling the repo.
-
-In this process, your POC will be [Mark Matyas](mmatyas@qti.qualcomm.com)
-
-Complete the form : https://ossops.qualcomm.com/github/enable-repo/
-
-### Note about Github Repo roles after going public
-
-When creating a repo withing the organization, it always starts as a private repo and one need to go through an approval
-process in order to have the repo go public. 
-
-Upon creation of the repo, the person who created it gets to be assigned the maintainer responsability and has full control
-over it in the settings. When the repo goes public, this changes. The repo creator stops having all the powers over the repo,
-and in order to join the repo as a contributor, one needs to enroll via a github mailing list instead of directly through the repo
-settings. 
-
-This is the link to go to in order to ask to be a contributor or a maintainer of a Qualcomm publib github repo : 
-https://lists.qualcomm.com/ListManager
-
-In the searchbox, one need to find the contributor/maintainer list corresponding to the repo. 
-If the repo is named "pkg-example", then the list(s) to search for are : 
-
-- contributors.pkg-example
-- maintainers.pkg-example
-
-It takes about an hour between the list acceptance and the new role to reflect in Github
-
-## Getting in Contact
-
-For support or inquiries, contact sbeaudoi@qti.qualcomm.com.
-
-## License
-
-pkg-template is licensed under the [BSD-3-Clause License](https://spdx.org/licenses/BSD-3-Clause.html). See [LICENSE.txt](LICENSE.txt) for the full license text.
+The packaging (`Files: debian/*`) is licensed under the BSD-3-Clause-Clear
+License. See
+[LICENSE.txt](https://github.com/qualcomm-linux/pkg-qcom-sv-binaries/blob/qcom/ubuntu/resolute/LICENSE.txt)
+for the full text.
