@@ -11,7 +11,7 @@ Build-Depends:
  libjsoncpp-dev
 Standards-Version: 4.6.2
 
-Package: libsv1
+Package: qcom-sv-binaries1
 Architecture: arm64
 Depends:
  ${shlibs:Depends},
@@ -20,11 +20,11 @@ Description: Snapdragon Vision API libraries for running hardware accelerated Co
  .
  This package contains shared libraries for the host system.
 
-Package: libsv-dev
+Package: qcom-sv-binaries-dev
 Section: libdevel
 Architecture: arm64
 Depends:
- libsv1 (= ${binary:Version}),
+ qcom-sv-binaries1 (= ${binary:Version}),
  ${misc:Depends},
 Description: Development files for Snapdragon Vision API computer vision libraries
  Development headers and pkg-config files for Qualcomm sv library.
